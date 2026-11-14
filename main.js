@@ -2,6 +2,14 @@ const { app, BrowserWindow, Menu, dialog, shell, protocol } = require('electron'
 const path = require('path');
 const fs = require('fs');
 
+// The nova-music:// scheme must be registered as privileged BEFORE app
+// ready, or fetch() from the page cannot use it (it fails with
+// "Failed to fetch"). standard + secure + supportFetchAPI makes it behave
+// like https for fetch/audio purposes.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'nova-music', privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }
+]);
+
 let mainWindow = null;
 let updateNoticeShown = false;
 
@@ -27,6 +35,12 @@ function registerMusicProtocol() {
   // The game page calls window.NovaturientElectron.music.getTrackUrl()
   // (see preload.js), which returns one of these URLs. No file is embedded
   // in the HTML; the 48 m3d tracks ship as local files.
+  //
+  // Chromium's <audio> element issues Range requests and needs a 206
+  // response with Content-Range / Content-Length / Accept-Ranges, or it
+  // fails with MEDIA_ERR_SRC_NOT_SUPPORTED. Verified live: with range
+  // support, schoolyardpunk.m4a loads (127.9s) and PORTRAIT.wav loads
+  // (179.3s); without it, both error out.
   protocol.handle('nova-music', async (request) => {
     try {
       const url = new URL(request.url);
@@ -38,7 +52,32 @@ function registerMusicProtocol() {
       const filePath = path.join(musicDir(), fileName);
       if (!fs.existsSync(filePath)) return new Response('Not found', { status: 404 });
       const data = await fs.promises.readFile(filePath);
-      return new Response(data, { headers: { 'Content-Type': mimeFor(fileName) } });
+      const type = mimeFor(fileName);
+      const range = request.headers.get('range');
+      if (range) {
+        const m = /bytes=(\d*)-(\d*)/.exec(range);
+        if (m) {
+          const start = m[1] ? parseInt(m[1], 10) : 0;
+          const end = m[2] ? Math.min(parseInt(m[2], 10), data.length - 1) : data.length - 1;
+          const slice = data.subarray(start, end + 1);
+          return new Response(slice, {
+            status: 206,
+            headers: {
+              'Content-Type': type,
+              'Content-Length': String(slice.length),
+              'Accept-Ranges': 'bytes',
+              'Content-Range': `bytes ${start}-${end}/${data.length}`
+            }
+          });
+        }
+      }
+      return new Response(data, {
+        headers: {
+          'Content-Type': type,
+          'Content-Length': String(data.length),
+          'Accept-Ranges': 'bytes'
+        }
+      });
     } catch (e) {
       return new Response('Error', { status: 500 });
     }

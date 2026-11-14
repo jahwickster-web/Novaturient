@@ -10,12 +10,21 @@ m3d soundtrack player, achievements, keyboard shortcuts).
 ```sh
 npm install
 npm start          # run locally
-npm run build      # Windows only, win32 x64, dir target -> dist/win-unpacked/
+npm run build      # Windows only, win32 x64, NSIS installer + dir folder
 ```
 
-The built folder contains `Novaturient.exe` — a folder with an .exe, no
-installer. The app is unsigned, so Windows SmartScreen will flag it on
-first launch (More info → Run anyway).
+The primary release asset is the installer `dist/Novaturient Setup
+0.17.0.exe` — one-click, per-user install (no admin), desktop + Start
+menu shortcuts, black butterfly icon. `dist/win-unpacked/` is kept as a
+folder-with-.exe backup. The app is unsigned, so Windows SmartScreen
+will flag it on first launch (More info → Run anyway).
+
+Building the NSIS installer on Linux needs Wine with 32-bit support
+(`wine32`): electron-builder runs its bundled NSIS `makensis` under
+Wine. Note: the system `makensis` (native Linux NSIS 3.09) cannot be
+used for this project — it segfaults when it enumerates a directory
+containing the track `I'M STILL ALONE.wav` (curly apostrophe U+2019 in
+the filename), so the Wine route is required.
 
 ## Soundtrack
 
@@ -26,6 +35,12 @@ and main.js serves them over `nova-music://music/<fileName>`.
 The 4 MP4 videos in the m3d folder are not soundtrack tracks and are not
 included.
 
+The handler answers Chromium's `<audio>` Range requests with 206
+Content-Range responses — without that, the audio element fails with
+MEDIA_ERR_SRC_NOT_SUPPORTED even though `fetch()` works. Verified live:
+schoolyardpunk.m4a loads (127.9s), PORTRAIT.wav loads (179.3s),
+ERENYX.m4a loads (174.6s).
+
 ## Auto-updater
 
 `electron-updater` is configured in `package.json` (`build.publish`,
@@ -34,11 +49,10 @@ On launch main.js also checks the public GitHub Releases feed for
 `jahwickster-web/Novaturient` and shows a notice offering to open the
 release page when a newer tag exists.
 
-Honest limit: this build ships as a folder (`dir` target), not an
-installer. electron-updater can only install a proper installer asset
-(NSIS), so a dir-only release will notify the player and open the
-release page instead of silently self-installing. Once a release carries
-an installer asset, `quitAndInstall` takes over.
+The v0.17 release carries the NSIS installer, so `electron-updater`
+can download it and install on restart (`quitAndInstall`) — the
+installer is the real self-update path. The manual GitHub check stays
+as a fallback notice.
 
 ## Saves
 

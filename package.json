@@ -1,1 +1,62 @@
-{"build":{"appId":"com.novaturient.conravia","directories":{"output":"dist"},"extraResources":[{"from":"assets/music","to":"assets/music"}],"files":["main.js","preload.js","index.html","icon.png","icon.ico","package.json"],"productName":"Novaturient","publish":{"owner":"jahwickster-web","provider":"github","repo":"Novaturient"},"win":{"icon":"icon.ico","target":"dir"}},"dependencies":{"electron-updater":"^6.3.0"},"description":"Novaturient - Conravia Life Simulator (v0.17)","devDependencies":{"electron":"^38.0.0","electron-builder":"^26.0.0"},"main":"main.js","name":"novaturient","scripts":{"build":"electron-builder --win dir","start":"electron ."},"version":"0.17.0"}
+{
+  "build": {
+    "appId": "com.novaturient.conravia",
+    "directories": {
+      "output": "dist"
+    },
+    "extraResources": [
+      {
+        "from": "assets/music",
+        "to": "assets/music"
+      }
+    ],
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "icon.png",
+      "icon.ico",
+      "package.json"
+    ],
+    "productName": "Novaturient",
+    "publish": {
+      "owner": "jahwickster-web",
+      "provider": "github",
+      "repo": "Novaturient"
+    },
+    "win": {
+      "icon": "icon.ico",
+      "target": [
+        "nsis",
+        "dir"
+      ]
+    },
+    "nsis": {
+      "artifactName": "Novaturient Setup ${version}.exe",
+      "installerIcon": "icon.ico",
+      "uninstallerIcon": "icon.ico",
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Novaturient",
+      "deleteAppDataOnUninstall": false
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.0"
+  },
+  "description": "Novaturient - Conravia Life Simulator (v0.17)",
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "main": "main.js",
+  "name": "novaturient",
+  "scripts": {
+    "build": "electron-builder --win",
+    "start": "electron ."
+  },
+  "version": "0.17.0"
+}
