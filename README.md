@@ -21,10 +21,40 @@ will flag it on first launch (More info → Run anyway).
 
 Building the NSIS installer on Linux needs Wine with 32-bit support
 (`wine32`): electron-builder runs its bundled NSIS `makensis` under
-Wine. Note: the system `makensis` (native Linux NSIS 3.09) cannot be
-used for this project — it segfaults when it enumerates a directory
-containing the track `I'M STILL ALONE.wav` (curly apostrophe U+2019 in
-the filename), so the Wine route is required.
+Wine. That is the preferred route, but this VM cannot install `wine32`
+— apt multiarch resolution breaks because the system's `libzstd1`
+is a custom `+hatch1` build with no matching i386 package.
+
+Fallback used for v0.17 (and what `installer.nsi` is): build the
+installer by hand with electron-builder's bundled Linux makensis
+(`~/.cache/electron-builder/nsis-3.0.4.1/.../linux/makensis`, NSISDIR
+pointed at its folder). Two gotchas, both found the hard way:
+
+1. makensis creates an anonymous temp file in `/tmp` (O_TMPFILE) and
+   mmaps it for the installer data. `/tmp` here is a 512 MB tmpfs,
+   and the installer data is ~1.1 GB, so makensis dies with SIGBUS
+   once the temp file passes 512 MB. Mount a bigger tmpfs on `/tmp`
+   in the SAME shell as the build
+   (`mount -t tmpfs -o size=4G tmpfs /tmp`) — mounts do not persist
+   across shells here.
+2. The track `I'M STILL ALONE.wav` (curly apostrophe U+2019) makes
+   native makensis crash when it enumerates its directory. The build
+   uses `staging/` — hard links of `dist/win-unpacked` where that
+   file is stored as `IM STILL ALONE.wav` — and the installer renames
+   it back to the real name at install time. Rebuild staging after
+   any new dir build: `rm -rf staging && mkdir staging &&
+   cp -al dist/win-unpacked/. staging/ && mv "staging/.../I'M STILL
+   ALONE.wav" "staging/.../IM STILL ALONE.wav"`.
+
+```sh
+mount -t tmpfs -o size=4G tmpfs /tmp
+export NSISDIR=~/.cache/electron-builder/nsis-3.0.4.1/nsis-3.0.4.1-1mx3n
+$NSISDIR/linux/makensis installer.nsi   # -> dist/Novaturient Setup 0.17.0.exe
+```
+
+`dist/latest.yml` (generated next to the installer) is what
+electron-updater reads from the GitHub Release to find the installer;
+regenerate its sha512/size if the installer is rebuilt.
 
 ## Soundtrack
 
